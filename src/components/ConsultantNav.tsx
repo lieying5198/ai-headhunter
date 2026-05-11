@@ -23,6 +23,7 @@ export default function ConsultantNav({
   }
 
   const navItems = [
+    { href: '/consultant/dashboard', label: '仪表盘', icon: '📊' },
     { href: '/consultant/jobs', label: '职位管理', icon: '💼' },
     { href: '/consultant/jobs/import', label: '导入职位', icon: '📤' },
     { href: '/consultant/candidates', label: '候选人', icon: '👥' },

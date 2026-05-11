@@ -48,7 +48,7 @@ export default async function ConsultantJobsPage() {
           <h1 className="text-2xl font-bold text-gray-900">职位管理</h1>
           <p className="text-sm text-gray-500 mt-1">共 {jobs?.length || 0} 个职位</p>
         </div>
-        <Link href="/consultant/import" className="btn-primary flex items-center gap-2">
+        <Link href="/consultant/jobs/import" className="btn-primary flex items-center gap-2">
           <span>+</span> 导入新职位
         </Link>
       </div>
@@ -58,7 +58,7 @@ export default async function ConsultantJobsPage() {
           <div className="text-5xl mb-4">📋</div>
           <h2 className="text-lg font-semibold text-gray-900 mb-2">还没有职位</h2>
           <p className="text-gray-500 mb-6">导入Excel/Word/PDF或手动输入来创建职位</p>
-          <Link href="/consultant/import" className="btn-primary">
+          <Link href="/consultant/jobs/import" className="btn-primary">
             立即导入职位
           </Link>
         </div>
