@@ -13,6 +13,7 @@ export interface Consultant {
   email: string
   name: string
   phone?: string
+  wechat?: string
   role: UserRole
   company?: string
   avatar_url?: string
@@ -38,26 +39,43 @@ export interface Job {
   id: string
   consultant_id?: string
   hidden_company_id?: string
+  job_number?: string
   title: string
   industry?: string
   job_function?: string
   city?: string
   salary_min?: number
   salary_max?: number
+  salary_benefits?: string
   level?: string
+  education_requirement?: string
+  experience_years?: string
+  department?: string
+  subordinate_count?: number
+  reports_to?: string
+  rank_title?: string
+  interview_rounds?: string
+  interview_process?: string
+  hire_count?: number
+  video_interview_acceptable?: boolean
   raw_jd?: string
   anonymized_jd?: string
   summary?: string
   tags: string[]
   requirements: string[]
+  required_conditions?: string[]
+  preferred_conditions?: string[]
+  target_companies?: string[]
+  skills_certificates?: string[]
   responsibilities: string[]
+  visit_notes?: string
+  must_ask_questions?: string[]
   status: JobStatus
   is_published: boolean
   view_count: number
   apply_count: number
   created_at: string
   updated_at: string
-  // Relations
   consultant?: Consultant
   hidden_company?: HiddenCompanyProfile
 }

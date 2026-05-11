@@ -39,7 +39,8 @@ export default async function JobDetailPage({ params }: Props) {
       salary_benefits, department, subordinate_count, department_structure,
       reports_to, rank_title, interview_rounds, interview_process,
       video_interview_acceptable,
-      hidden_company_id
+      hidden_company_id,
+      user_id
     `)
     .eq('id', id)
     .eq('is_published', true)
@@ -54,6 +55,18 @@ export default async function JobDetailPage({ params }: Props) {
       .eq('id', job.hidden_company_id)
       .single()
     company = companyData
+  }
+
+  // 查询该职位发布者的微信号列表
+  let wechats: Array<{ id: string, wechat_id: string, nickname: string, is_primary: boolean, is_online: boolean }> = []
+  if (job?.user_id) {
+    const { data: wechatData } = await supabase
+      .from('wechats')
+      .select('id, wechat_id, nickname, is_primary, is_online')
+      .eq('user_id', job.user_id)
+      .order('is_primary', { ascending: false })
+      .order('created_at', { ascending: true })
+    if (wechatData) wechats = wechatData
   }
 
   // 详细错误提示（临时调试用）
@@ -197,6 +210,7 @@ export default async function JobDetailPage({ params }: Props) {
         jobId={job.id}
         jobTitle={job.title}
         copyText={generateCopyText()}
+        wechats={wechats}
       />
 
       {/* 薪资卡片 */}
