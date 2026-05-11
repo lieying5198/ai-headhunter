@@ -83,19 +83,18 @@ export async function POST(request: NextRequest) {
       companies?.map(c => [c.anonymized_name.toLowerCase(), c.id]) || []
     );
 
-    // 下架该顾问之前发布的所有职位（按用户要求：覆盖以前的所有职位）
-    const { data: myJobs } = await supabase
+    // 获取该顾问已发布的职位（用于智能匹配）
+    const { data: existingJobs } = await supabase
       .from('jobs')
-      .select('id')
-      .eq('consultant_id', consultant.id)
-      .eq('is_published', true);
+      .select('id, title, hidden_company_id, hidden_company:hidden_company_profiles!inner(anonymized_name)')
+      .eq('consultant_id', consultant.id);
 
-    if (myJobs && myJobs.length > 0) {
-      await supabase
-        .from('jobs')
-        .update({ is_published: false, status: 'closed' })
-        .in('id', myJobs.map(j => j.id));
-    }
+    // 构建已有职位索引：title_lowercase + company_anonymized_name_lowercase -> job
+    const existingJobMap = new Map<string, any>();
+    existingJobs?.forEach(job => {
+      const key = `${job.title.toLowerCase()}_${(job.hidden_company as any)?.anonymized_name?.toLowerCase()}`;
+      existingJobMap.set(key, job);
+    });
 
     // 处理每一行
     for (let i = 0; i < rows.length; i++) {
@@ -161,8 +160,12 @@ export async function POST(request: NextRequest) {
           ? (rowData['优先条件(逗号分隔)'] as string).split('，').map((s: string) => s.trim()).filter(Boolean)
           : [];
 
+        // 构建匹配键：title + company_anon
+        const matchKey = `${title.toLowerCase()}_${companyAnon.toLowerCase()}`;
+        const existingJob = existingJobMap.get(matchKey);
+
         // 构建职位数据
-        const jobData = {
+        const jobData: Record<string, any> = {
           consultant_id: matchedConsultantId,
           hidden_company_id: companyId,
           title,
@@ -187,19 +190,37 @@ export async function POST(request: NextRequest) {
           preferred_conditions: preferredConditions,
           is_published: isPublished,
           status: isPublished ? 'published' : 'draft',
-          job_number: generateJobNumber(i + 1),
         };
 
-        // 插入职位
-        const { error: insertError } = await supabase
-          .from('jobs')
-          .insert(jobData);
+        if (existingJob) {
+          // 智能更新：更新已有职位
+          const { error: updateError } = await supabase
+            .from('jobs')
+            .update(jobData)
+            .eq('id', existingJob.id);
 
-        if (insertError) {
-          results.failed++;
-          results.errors.push(`第${i + 2}行：插入失败 - ${insertError.message}`);
+          if (updateError) {
+            results.failed++;
+            results.errors.push(`第${i + 2}行：更新失败 - ${updateError.message}`);
+          } else {
+            results.updated++;
+            // 从索引中移除，表示已处理
+            existingJobMap.delete(matchKey);
+          }
         } else {
-          results.success++;
+          // 智能插入：新增职位（首次导入或新职位）
+          jobData.job_number = generateJobNumber(i + 1);
+
+          const { error: insertError } = await supabase
+            .from('jobs')
+            .insert(jobData);
+
+          if (insertError) {
+            results.failed++;
+            results.errors.push(`第${i + 2}行：插入失败 - ${insertError.message}`);
+          } else {
+            results.success++;
+          }
         }
       } catch (rowError: any) {
         results.failed++;
@@ -207,9 +228,22 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // 处理完所有行后，下架本次未更新的旧职位
+    const unpublishedCount = existingJobMap.size;
+    if (unpublishedCount > 0) {
+      const unpublishedIds = Array.from(existingJobMap.values()).map((j: any) => j.id);
+      await supabase
+        .from('jobs')
+        .update({ is_published: false, status: 'closed' })
+        .in('id', unpublishedIds);
+    }
+
     return NextResponse.json({
       message: '导入完成',
-      results,
+      results: {
+        ...results,
+        unpublished: unpublishedCount, // 本次下架的旧职位数
+      },
     });
   } catch (error: any) {
     console.error('导入失败:', error);

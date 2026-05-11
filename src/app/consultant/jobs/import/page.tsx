@@ -114,7 +114,8 @@ export default function JobImportPage() {
                     <li>点击「下载模板」按钮，获取 Excel 导入模板</li>
                     <li>按照模板格式填写职位信息（带 * 为必填项）</li>
                     <li>保存 Excel 文件后，点击「选择文件」上传</li>
-                    <li>系统会自动下架您之前发布的所有职位，并以新导入的为准</li>
+                    <li><strong>智能匹配：</strong>系统会根据「职位名称+公司简称」自动识别是新增还是更新</li>
+                    <li>本次未导入的旧职位会自动下架</li>
                   </ol>
                 </div>
               </div>
@@ -159,14 +160,18 @@ export default function JobImportPage() {
           {results && (
             <div className="bg-white shadow rounded-lg p-6">
               <h2 className="text-lg font-medium text-gray-900 mb-4">导入结果</h2>
-              <div className="grid grid-cols-3 gap-4 mb-6">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 <div className="bg-green-50 p-4 rounded-lg">
-                  <p className="text-sm text-green-600">成功</p>
+                  <p className="text-sm text-green-600">新增</p>
                   <p className="text-2xl font-bold text-green-800">{results.success}</p>
                 </div>
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <p className="text-sm text-blue-600">更新</p>
+                  <p className="text-2xl font-bold text-blue-800">{results.updated}</p>
+                </div>
                 <div className="bg-yellow-50 p-4 rounded-lg">
-                  <p className="text-sm text-yellow-600">更新</p>
-                  <p className="text-2xl font-bold text-yellow-800">{results.updated}</p>
+                  <p className="text-sm text-yellow-600">下架</p>
+                  <p className="text-2xl font-bold text-yellow-800">{results.unpublished || 0}</p>
                 </div>
                 <div className="bg-red-50 p-4 rounded-lg">
                   <p className="text-sm text-red-600">失败</p>
