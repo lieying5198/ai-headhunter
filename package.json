@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "embed:jobs": "npx tsx scripts/batch_embed_jobs.ts",
+    "embed:jobs": "npx tsx scripts/batch_embed_jobs.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.1",
