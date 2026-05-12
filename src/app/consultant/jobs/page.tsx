@@ -1,10 +1,9 @@
 // src/app/consultant/jobs/page.tsx
-// 顾问职位管理列表
+// 顾问职位管理列表（服务器组件 → 客户端组件分离）
 
 import { createClient, createServiceClient } from '@/lib/supabase/server'
-import { getJobStatusLabel, formatSalary } from '@/lib/utils/helpers'
-import JobActions from './JobActions'
 import Link from 'next/link'
+import JobList from '@/components/consultant/JobList'
 
 export default async function ConsultantJobsPage() {
   const supabase = await createClient()
@@ -23,23 +22,23 @@ export default async function ConsultantJobsPage() {
     )
   }
 
-  const { data: jobs } = await serviceClient
+  // 获取顾问列表（用于分配）
+  const { data: consultants } = await serviceClient
+    .from('consultants')
+    .select('id, name, email')
+    .order('name')
+
+  // 获取当前顾问的职位
+  const { data: jobs, error } = await serviceClient
     .from('jobs')
     .select(`
       id, title, industry, city, salary_min, salary_max,
       level, status, is_published, view_count, apply_count,
-      summary, tags, created_at,
+      summary, tags, created_at, consultant_id,
       hidden_company:hidden_company_profiles(anonymized_name)
     `)
     .eq('consultant_id', user!.id)
     .order('created_at', { ascending: false })
-
-  const statusColors: Record<string, string> = {
-    draft:      'bg-gray-100 text-gray-600',
-    processing: 'bg-yellow-100 text-yellow-700',
-    published:  'bg-green-100 text-green-700',
-    closed:     'bg-red-100 text-red-600',
-  }
 
   return (
     <div>
@@ -63,48 +62,10 @@ export default async function ConsultantJobsPage() {
           </Link>
         </div>
       ) : (
-        <div className="space-y-3">
-          {jobs.map((job: any) => (
-            <div key={job.id} className="card p-5">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-1">
-                    <h2 className="text-base font-semibold text-gray-900">{job.title}</h2>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColors[job.status]}`}>
-                      {getJobStatusLabel(job.status)}
-                    </span>
-                    {job.is_published && (
-                      <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
-                        ✓ 已上架
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-3 text-sm text-gray-500 mb-2">
-                    {job.industry && <span>{job.industry}</span>}
-                    {job.city && <span>📍 {job.city}</span>}
-                    {(job.salary_min || job.salary_max) && (
-                      <span className="text-blue-600 font-medium">
-                        {formatSalary(job.salary_min, job.salary_max)}
-                      </span>
-                    )}
-                    <span className="text-gray-400">
-                      👁 {job.view_count} · 📄 {job.apply_count}人申请
-                    </span>
-                  </div>
-
-                  {(job.hidden_company as any)?.anonymized_name && (
-                    <div className="text-xs text-gray-400">
-                      客户：{(job.hidden_company as any).anonymized_name}
-                    </div>
-                  )}
-                </div>
-
-                <JobActions jobId={job.id} status={job.status} isPublished={job.is_published} />
-              </div>
-            </div>
-          ))}
-        </div>
+        <JobList
+          jobs={jobs as any}
+          consultants={consultants || []}
+        />
       )}
     </div>
   )
