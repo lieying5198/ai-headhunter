@@ -1,0 +1,103 @@
+name: Deploy to Server
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Next.js
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SILICONFLOW_API_KEY: ${{ secrets.SILICONFLOW_API_KEY }}
+          SILICONFLOW_MODEL: Qwen/Qwen2.5-72B-Instruct
+        run: npm run build
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
+
+      - name: Deploy to server
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_PORT: ${{ secrets.SERVER_PORT }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+        run: |
+          echo "🚀 开始部署到服务器..."
+          
+          # 创建临时目录用于传输
+          DEPLOY_DIR="/tmp/ai-headhunter-$(date +%s)"
+          
+          # 复制构建文件到临时目录
+          rsync -avz --delete \
+            -e "ssh -p $SERVER_PORT -o StrictHostKeyChecking=no" \
+            --exclude='.next/static/chunks' \
+            ./ \
+            $SERVER_USER@$SERVER_HOST:$DEPLOY_DIR/
+          
+          # 在服务器上执行部署
+          ssh -p $SERVER_PORT -o StrictHostKeyChecking=no $SERVER_USER@$SERVER_HOST << 'ENDSSH'
+            set -e
+            
+            DEPLOY_DIR="$1"
+            APP_DIR="/var/www/ai-headhunter"
+            
+            # 备份当前版本
+            if [ -d "$APP_DIR" ]; then
+              cp -r "$APP_DIR" "$APP_DIR.backup-$(date +%s)"
+            fi
+            
+            # 移动新版本到正式目录
+            mv "$DEPLOY_DIR" "$APP_DIR"
+            
+            # 安装依赖并构建
+            cd "$APP_DIR"
+            npm ci --production
+            
+            # 重启 PM2 进程
+            pm2 restart ai-headhunter || pm2 start npm --name "ai-headhunter" -- start
+            
+            echo "✅ 部署完成"
+          ENDSSH
+          
+          # 清理临时目录
+          ssh -p $SERVER_PORT $SERVER_USER@$SERVER_HOST "rm -rf $DEPLOY_DIR"
+
+      - name: Deploy Static Assets
+        if: always()
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_PORT: ${{ secrets.SERVER_PORT }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+        run: |
+          echo "📦 上传静态资源..."
+          
+          # 使用 rsync 同步静态资源
+          rsync -avz --delete \
+            -e "ssh -p $SERVER_PORT -o StrictHostKeyChecking=no" \
+            ./out/ \
+            $SERVER_USER@$SERVER_HOST:/var/www/ai-headhunter/out/ || true
+          
+          rsync -avz --delete \
+            -e "ssh -p $SERVER_PORT -o StrictHostKeyChecking=no" \
+            .next/static/ \
+            $SERVER_USER@$SERVER_HOST:/var/www/ai-headhunter/.next/static/ || true
