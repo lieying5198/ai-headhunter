@@ -8,7 +8,6 @@
     "start": "next start",
     "lint": "next lint",
     "embed:jobs": "npx tsx scripts/batch_embed_jobs.ts",
-    "deploy:cloudbase": "npm run build && cloudbase framework deploy"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.1",
@@ -39,6 +38,5 @@
     "tailwindcss": "^3.4.1",
     "tsx": "^4.21.0",
     "typescript": "^5",
-    "@cloudbase/framework": "^5.0.0"
   }
 }
