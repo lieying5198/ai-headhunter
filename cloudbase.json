@@ -1,0 +1,19 @@
+{
+  "version": "2.0",
+  "envId": "{{envId}}",
+  "framework": {
+    "name": "ai-headhunter",
+    "frameworkName": "nextjs",
+    "description": "AI猎头助手 - Next.js SSR应用"
+  },
+  "region": "ap-guangzhou",
+  "compilation": {
+    "buildCommand": "npm run build",
+    "outputDir": ".next",
+    "installCommand": "npm install"
+  },
+  "server": {
+    "port": 3000,
+    "name": "nodejs"
+  }
+}
