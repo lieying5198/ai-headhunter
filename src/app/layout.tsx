@@ -21,12 +21,12 @@ export default function RootLayout({
           {children}
         </main>
         {/* ICP备案信息 */}
-        <footer className="bg-gray-100 py-4 text-center text-xs text-gray-500">
-          <a 
-            href="https://beian.miit.gov.cn/" 
-            target="_blank" 
+        <footer className="bg-gray-100 py-4 text-center text-xs text-gray-700">
+          <a
+            href="https://beian.miit.gov.cn/"
+            target="_blank"
             rel="noopener noreferrer"
-            className="hover:text-gray-700 transition-colors"
+            className="hover:text-blue-600 transition-colors font-medium"
           >
             粤ICP备2022099477号-1
           </a>
