@@ -293,7 +293,7 @@ export default function JobListPage() {
             href="https://beian.miit.gov.cn/"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs text-gray-600 hover:text-gray-900 transition-colors font-medium"
+            className="text-xs text-gray-700 hover:text-blue-600 transition-colors font-medium mt-2 block"
           >
             粤ICP备2022099477号-1
           </a>
