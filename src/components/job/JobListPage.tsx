@@ -288,15 +288,7 @@ export default function JobListPage() {
       {/* 页脚 */}
       <footer className="bg-gray-50 border-t border-gray-200 mt-16 py-6">
         <div className="max-w-6xl mx-auto px-4 text-center">
-          <p className="text-sm text-gray-500 mb-2">猎英联盟 · 专业猎头服务 · 用心成就每一份职业梦想</p>
-          <a
-            href="https://beian.miit.gov.cn/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-gray-700 hover:text-blue-600 transition-colors font-medium mt-2 block"
-          >
-            粤ICP备2022099477号-1
-          </a>
+          <p className="text-sm text-gray-500">猎英联盟 · 专业猎头服务 · 用心成就每一份职业梦想</p>
         </div>
       </footer>
     </div>
