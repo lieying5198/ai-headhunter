@@ -285,6 +285,18 @@ export default function JobListPage() {
         />
       )}
 
+      {/* ICP备案信息 */}
+      <footer className="bg-gray-800 py-4 text-center text-xs mt-8">
+        <p className="text-gray-400 mb-1">猎英联盟 · 专业猎头服务</p>
+        <a
+          href="https://beian.miit.gov.cn/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-gray-300 hover:text-white font-medium transition-colors"
+        >
+          粤ICP备2022099477号-1
+        </a>
+      </footer>
     </div>
   )
 }
