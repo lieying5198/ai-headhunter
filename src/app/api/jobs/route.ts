@@ -25,7 +25,7 @@ function loadStaticJobs(): any[] {
       title: j.title,
       industry: j.industry,
       job_function: j.job_function || j.function,
-      city: j.city,
+      city: typeof j.city === 'string' ? j.city : (j.city && typeof j.city === 'object' ? (j.city.city || j.city.name || '') : ''),
       salary_min: j.salary_min,
       salary_max: j.salary_max,
       level: j.level,

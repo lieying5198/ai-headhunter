@@ -36,6 +36,8 @@ export interface RagContext {
 /**
  * 获取完整 RAG 上下文（对话历史 + 向量检索 + 顾问上下文）
  * 在 AI 回复前调用，为 System Prompt 注入个性化内容
+ * 
+ * 安全设计：所有子模块失败都不阻塞主流程，确保 AI 对话始终可用
  */
 export async function buildRagContext(params: {
   jobId: string
@@ -43,76 +45,92 @@ export async function buildRagContext(params: {
   userMessage: string
   consultantId?: string
 }): Promise<RagContext> {
-  const supabase = createServiceClient()
   const context: RagContext = {}
 
-  // 1. 加载对话历史（AI 越聊越懂用户）
-  if (params.sessionId) {
-    const { messages, context: convContext } = await loadConversation({
-      jobId: params.jobId,
-      sessionId: params.sessionId,
-    })
+  try {
+    const supabase = createServiceClient()
 
-    if (messages && messages.length > 0) {
-      context.conversationSummary = extractConversationSummary(messages)
-      console.log(`[RAG] 加载对话历史 ${messages.length} 条`)
-    }
-  }
-
-  // 2. 向量检索（语义搜索相关职位）
-  if (supabase) {
-    try {
-      const queryResult = await generateEmbedding(params.userMessage)
-      if (queryResult) {
-        const { data } = await supabase.rpc('match_jobs', {
-          query_embedding: queryResult.embedding,
-          match_threshold: 0.6,  // 适度放宽，找更多相关内容
-          match_count: 3,
+    // 1. 加载对话历史（AI 越聊越懂用户）
+    if (params.sessionId) {
+      try {
+        const { messages, context: convContext } = await loadConversation({
+          jobId: params.jobId,
+          sessionId: params.sessionId,
         })
-        if (data && data.length > 0) {
-          context.relatedJobs = data.map((j: any) => ({
-            id: j.id,
-            title: j.title,
-            similarity: j.similarity,
-            summary: j.summary,
-          }))
-          console.log(`[RAG] 向量检索找到 ${data.length} 个相关职位`)
+
+        if (messages && messages.length > 0) {
+          context.conversationSummary = extractConversationSummary(messages)
+          console.log(`[RAG] 加载对话历史 ${messages.length} 条`)
         }
+      } catch (err: any) {
+        console.warn('[RAG] 加载对话历史失败:', err.message)
+        // 不阻塞，继续执行
+      }
+    }
+
+    // 2. 向量检索（语义搜索相关职位）
+    if (supabase) {
+      try {
+        const queryResult = await generateEmbedding(params.userMessage)
+        if (queryResult) {
+          const { data } = await supabase.rpc('match_jobs', {
+            query_embedding: queryResult.embedding,
+            match_threshold: 0.6,  // 适度放宽，找更多相关内容
+            match_count: 3,
+          })
+          if (data && data.length > 0) {
+            context.relatedJobs = data.map((j: any) => ({
+              id: j.id,
+              title: j.title,
+              similarity: j.similarity,
+              summary: j.summary,
+            }))
+            console.log(`[RAG] 向量检索找到 ${data.length} 个相关职位`)
+          }
+        }
+      } catch (err: any) {
+        console.warn('[RAG] 向量检索失败（embedding 可能尚未生成）:', err.message)
+        // 不阻塞，向量检索失败不影响对话
+      }
+    }
+
+    // 3. 顾问上下文（顾问 AI 个性化）
+    if (params.consultantId && supabase) {
+      try {
+        const { data } = await supabase
+          .from('consultant_context')
+          .select('*')
+          .eq('consultant_id', params.consultantId)
+          .single()
+
+        if (data) {
+          context.consultantContext = {
+            specialty: data.specialty,
+            communicationStyle: data.communication_style,
+            recentWins: data.recent_wins,
+          }
+          console.log(`[RAG] 加载顾问上下文: ${data.specialty || '未设置'}`)
+        }
+      } catch {
+        // 顾问上下文不存在也继续
+      }
+    }
+
+    // 4. IMA 知识库检索（可选）
+    try {
+      const { searchKnowledgeBase } = await import('./ima-knowledge')
+      const kbContent = await searchKnowledgeBase(params.userMessage)
+      if (kbContent) {
+        context.knowledgeBaseContent = kbContent
+        console.log('[RAG] IMA 知识库检索命中')
       }
     } catch (err: any) {
-      console.warn('[RAG] 向量检索失败（embedding 可能尚未生成）:', err.message)
-      // 不阻塞，向量检索失败不影响对话
+      console.warn('[RAG] IMA 知识库检索失败:', err.message)
+      // 不阻塞
     }
-  }
-
-  // 3. 顾问上下文（顾问 AI 个性化）
-  if (params.consultantId && supabase) {
-    try {
-      const { data } = await supabase
-        .from('consultant_context')
-        .select('*')
-        .eq('consultant_id', params.consultantId)
-        .single()
-
-      if (data) {
-        context.consultantContext = {
-          specialty: data.specialty,
-          communicationStyle: data.communication_style,
-          recentWins: data.recent_wins,
-        }
-        console.log(`[RAG] 加载顾问上下文: ${data.specialty || '未设置'}`)
-      }
-    } catch {
-      // 顾问上下文不存在也继续
-    }
-  }
-
-  // 4. IMA 知识库检索（可选）
-  const { searchKnowledgeBase } = await import('./ima-knowledge')
-  const kbContent = await searchKnowledgeBase(params.userMessage)
-  if (kbContent) {
-    context.knowledgeBaseContent = kbContent
-    console.log('[RAG] IMA 知识库检索命中')
+  } catch (err: any) {
+    console.error('[RAG] buildRagContext 整体失败:', err.message)
+    // 返回空上下文，确保 AI 对话不中断
   }
 
   return context

@@ -82,7 +82,17 @@ export default function JobListPage() {
   const cityList = useMemo(() => {
     const set = new Set<string>()
     allJobs.forEach(j => {
-      if (j.city && j.city !== 'nan' && j.city !== 'NaN' && j.city !== '不限') set.add(j.city!)
+      // 防御性处理：city 可能是对象或字符串
+      let cityValue: string | undefined
+      if (typeof j.city === 'string') {
+        cityValue = j.city
+      } else if (j.city && typeof j.city === 'object') {
+        // 如果 city 是对象，尝试提取 .city 或 .name 属性
+        cityValue = (j.city as any).city || (j.city as any).name || String(j.city)
+      }
+      if (cityValue && cityValue !== 'nan' && cityValue !== 'NaN' && cityValue !== '不限' && cityValue !== '[object Object]') {
+        set.add(cityValue)
+      }
     })
     return ['全部', ...Array.from(set).sort()]
   }, [allJobs])
@@ -430,14 +440,23 @@ function JobCard({ job, onReferral }: { job: Job; onReferral: (job: Job) => void
             </h3>
           </Link>
           <div className="flex items-center gap-2 mt-2 text-sm text-gray-500">
-            {job.city && job.city !== 'nan' && (
-              <span className="inline-flex items-center gap-1">
-                <svg className="w-3.5 h-3.5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-                </svg>
-                {job.city}
-              </span>
-            )}
+            {(() => {
+              // 防御性处理 city 显示
+              let cityDisplay: string | null = null
+              if (typeof job.city === 'string' && job.city !== 'nan' && job.city !== 'NaN') {
+                cityDisplay = job.city
+              } else if (job.city && typeof job.city === 'object') {
+                cityDisplay = (job.city as any).city || (job.city as any).name || null
+              }
+              return cityDisplay && cityDisplay !== '[object Object]' ? (
+                <span className="inline-flex items-center gap-1">
+                  <svg className="w-3.5 h-3.5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                  </svg>
+                  {cityDisplay}
+                </span>
+              ) : null
+            })()}
             {job.level && (
               <>
                 <span className="text-gray-300">·</span>

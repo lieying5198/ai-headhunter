@@ -164,12 +164,19 @@ export async function POST(request: NextRequest) {
   ])
 
   // 4. 构建 RAG 上下文（对话历史 + 向量检索 + 顾问上下文 + IMA知识库）
-  const ragContext = await buildRagContext({
-    jobId,
-    sessionId,
-    userMessage: message,
-    consultantId: consultantId || job.consultant_id,
-  })
+  // 用 try/catch 包裹，RAG 失败不影响 AI 对话
+  let ragContext: any = {}
+  try {
+    ragContext = await buildRagContext({
+      jobId,
+      sessionId,
+      userMessage: message,
+      consultantId: consultantId || job.consultant_id,
+    })
+  } catch (err: any) {
+    console.warn('[AI Chat] RAG 构建失败，使用空上下文:', err.message)
+    ragContext = {}
+  }
 
   // 5. 构建增强 System Prompt
   const baseSystemPrompt = buildBaseSystemPrompt(job, consultantId)
@@ -192,13 +199,18 @@ export async function POST(request: NextRequest) {
   let messagesForAI: { role: 'system' | 'user' | 'assistant'; content: string }[] = []
 
   if (isSupabaseConfigured()) {
-    // 从数据库加载历史对话
-    const { messages: dbMessages } = await loadConversation({ jobId, sessionId })
-    if (dbMessages && dbMessages.length > 0) {
-      messagesForAI = dbMessages.slice(-20).map((m: any) => ({
-        role: m.role,
-        content: m.content,
-      }))
+    try {
+      // 从数据库加载历史对话
+      const { messages: dbMessages } = await loadConversation({ jobId, sessionId })
+      if (dbMessages && dbMessages.length > 0) {
+        messagesForAI = dbMessages.slice(-20).map((m: any) => ({
+          role: m.role,
+          content: m.content,
+        }))
+      }
+    } catch (err: any) {
+      console.warn('[AI Chat] 加载历史对话失败:', err.message)
+      // 不阻塞，使用传入的历史
     }
   }
 
