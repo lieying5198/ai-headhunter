@@ -1,101 +1,125 @@
 // src/app/jobs/[id]/page.tsx
 // 精美职位详情页 - 适合朋友圈传播，移动端优先
+// 双模式：优先 Supabase，失败时自动降级到本地 JSON
 
 import { createServiceClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import JobDetailClient from '@/components/job/JobDetailClient'
+import { readFileSync } from 'fs'
+import path from 'path'
 
 interface Props {
   params: Promise<{ id: string }>
 }
 
+// 从静态 JSON 加载单个职位
+function loadStaticJob(id: string): any {
+  try {
+    const filePath = path.join(process.cwd(), 'public', 'data', 'jobs.json')
+    const content = readFileSync(filePath, 'utf-8')
+    const jobs = JSON.parse(content)
+    return jobs.find((j: any) => j.id === id && j.is_published !== false) || null
+  } catch {
+    return null
+  }
+}
+
+// 检查 Supabase 是否已配置
+function isSupabaseConfigured(): boolean {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  return !(!url || url === 'placeholder' || url.includes('placeholder.supabase'))
+}
+
 export default async function JobDetailPage({ params }: Props) {
   const { id } = await params
-  const supabase = createServiceClient()
-
-  // 未配置数据库时使用静态数据
-  if (!supabase) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="text-5xl mb-4">⚙️</div>
-          <h2 className="text-lg font-semibold text-gray-900 mb-2">数据库未配置</h2>
-          <p className="text-gray-500">请配置 Supabase 环境变量</p>
-        </div>
-      </div>
-    )
-  }
-
-  const { data: job, error } = await supabase
-    .from('jobs')
-    .select(`
-      id, title, industry, job_function, city, salary_min, salary_max,
-      level, anonymized_jd, summary, tags, requirements, responsibilities,
-      apply_count, view_count, created_at,
-      job_number, visit_notes, required_conditions, preferred_conditions,
-      target_companies, must_ask_questions, hire_count, detailed_address,
-      education_requirement, experience_years, skills_certificates,
-      salary_benefits, department, subordinate_count, department_structure,
-      reports_to, rank_title, interview_rounds, interview_process,
-      video_interview_acceptable,
-      hidden_company_id,
-      user_id
-    `)
-    .eq('id', id)
-    .eq('is_published', true)
-    .single()
-
-  // 单独查询公司信息
-  let company = null
-  if (job?.hidden_company_id) {
-    const { data: companyData } = await supabase
-      .from('hidden_company_profiles')
-      .select('anonymized_name, industry, scale, stage, is_listed')
-      .eq('id', job.hidden_company_id)
-      .single()
-    company = companyData
-  }
-
-  // 查询该职位发布者的微信号列表
+  let job: any = null
+  let company: any = null
   let wechats: Array<{ id: string, wechat_id: string, nickname: string, is_primary: boolean, is_online: boolean }> = []
-  if (job?.user_id) {
-    const { data: wechatData } = await supabase
-      .from('wechats')
-      .select('id, wechat_id, nickname, is_primary, is_online')
-      .eq('user_id', job.user_id)
-      .order('is_primary', { ascending: false })
-      .order('created_at', { ascending: true })
-    if (wechatData) wechats = wechatData
+  let error: any = null
+
+  // 1. 尝试从 Supabase 查询
+  if (isSupabaseConfigured()) {
+    try {
+      const supabase = createServiceClient()
+      if (supabase) {
+        const { data: dbJob, error: dbError } = await supabase
+          .from('jobs')
+          .select(`
+            id, title, industry, job_function, city, salary_min, salary_max,
+            level, anonymized_jd, summary, tags, requirements, responsibilities,
+            apply_count, view_count, created_at,
+            job_number, visit_notes, required_conditions, preferred_conditions,
+            target_companies, must_ask_questions, hire_count, detailed_address,
+            education_requirement, experience_years, skills_certificates,
+            salary_benefits, department, subordinate_count, department_structure,
+            reports_to, rank_title, interview_rounds, interview_process,
+            video_interview_acceptable,
+            hidden_company_id,
+            user_id
+          `)
+          .eq('id', id)
+          .eq('is_published', true)
+          .single()
+
+        if (dbJob) {
+          job = dbJob
+          // 查询公司信息
+          if (job.hidden_company_id) {
+            const { data: companyData } = await supabase
+              .from('hidden_company_profiles')
+              .select('anonymized_name, industry, scale, stage, is_listed')
+              .eq('id', job.hidden_company_id)
+              .single()
+            company = companyData
+          }
+          // 查询微信号
+          if (job.user_id) {
+            const { data: wechatData } = await supabase
+              .from('wechats')
+              .select('id, wechat_id, nickname, is_primary, is_online')
+              .eq('user_id', job.user_id)
+              .order('is_primary', { ascending: false })
+              .order('created_at', { ascending: true })
+            if (wechatData) wechats = wechatData
+          }
+        } else {
+          error = dbError
+        }
+      }
+    } catch (err: any) {
+      console.warn('[JobDetail] Supabase 查询失败，降级到静态数据:', err.message)
+      error = err
+    }
   }
 
-  // 详细错误提示（临时调试用）
-  if (error || !job) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center max-w-2xl mx-auto p-8">
-          <div className="text-5xl mb-4">⚠️</div>
-          <h1 className="text-2xl font-bold text-red-600 mb-4">页面加载失败</h1>
-          <div className="text-left bg-white rounded-2xl p-6 shadow-lg">
-            <h2 className="font-semibold mb-2">错误信息：</h2>
-            <pre className="bg-gray-100 p-4 rounded-lg text-sm overflow-auto mb-4">
-              {JSON.stringify(error, null, 2)}
-            </pre>
-            <h2 className="font-semibold mb-2">职位数据：</h2>
-            <pre className="bg-gray-100 p-4 rounded-lg text-sm overflow-auto">
-              {JSON.stringify(job, null, 2)}
-            </pre>
-            <h2 className="font-semibold mb-2 mt-4">查询 ID：</h2>
-            <p className="bg-gray-100 p-4 rounded-lg text-sm">{id}</p>
-          </div>
-        </div>
-      </div>
-    )
+  // 2. Supabase 未配置或查询失败时，从静态 JSON 加载
+  if (!job) {
+    job = loadStaticJob(id)
+    if (job) {
+      console.log('[JobDetail] 使用静态数据:', job.title)
+      // 静态数据没有 company/wechats，使用默认值
+      company = null
+      wechats = []
+    }
   }
-  // if (error || !job) notFound()
 
-  // 增加浏览量
-  supabase.from('jobs').update({ view_count: (job.view_count || 0) + 1 }).eq('id', id).then(() => {})
+  // 3. 仍未找到职位
+  if (!job) {
+    notFound()
+  }
+
+  // 增加浏览量（仅 Supabase 模式）
+  if (isSupabaseConfigured()) {
+    try {
+      const supabase = createServiceClient()
+      if (supabase) {
+        supabase.from('jobs').update({ view_count: (job.view_count || 0) + 1 }).eq('id', id).then(() => {})
+      }
+    } catch {
+      // 忽略浏览量更新失败
+    }
+  }
 
   const requirements = Array.isArray(job.requirements) ? job.requirements : []
   const responsibilities = Array.isArray(job.responsibilities) ? job.responsibilities : []
