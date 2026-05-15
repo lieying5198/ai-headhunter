@@ -21,6 +21,7 @@ function loadStaticJobs(): any[] {
     const jobs = JSON.parse(content)
     return jobs.filter((j: any) => j.is_published !== false).map((j: any) => ({
       id: j.id,
+      job_number: j.job_number,
       title: j.title,
       industry: j.industry,
       job_function: j.job_function || j.function,
@@ -32,6 +33,7 @@ function loadStaticJobs(): any[] {
       tags: j.tags,
       status: j.status,
       is_published: j.is_published,
+      company_name_temp: j.company_name_temp || '',
       consultant_wechat: j.consultant_wechat || '',
       view_count: j.view_count || 0,
       apply_count: j.apply_count || 0,
@@ -52,7 +54,8 @@ function filterAndPaginate(jobs: any[], request: NextRequest) {
   const jobFunction = searchParams.get('function')
   const salaryMin = searchParams.get('salaryMin')
   const salaryMax = searchParams.get('salaryMax')
-  const q = searchParams.get('q')
+  const q = searchParams.get('q') || searchParams.get('keyword') || ''
+  const sort = searchParams.get('sort') || 'latest'
 
   let filtered = jobs
 
@@ -65,9 +68,18 @@ function filterAndPaginate(jobs: any[], request: NextRequest) {
     const lowerQ = q.toLowerCase()
     filtered = filtered.filter((j: any) =>
       j.title?.toLowerCase().includes(lowerQ) ||
-      j.summary?.toLowerCase().includes(lowerQ)
+      j.summary?.toLowerCase().includes(lowerQ) ||
+      (j.company_name_temp && j.company_name_temp.toLowerCase().includes(lowerQ))
     )
   }
+
+  // 排序
+  if (sort === 'salary_high') {
+    filtered.sort((a: any, b: any) => (b.salary_max || b.salary_min || 0) - (a.salary_max || a.salary_min || 0))
+  } else if (sort === 'hot') {
+    filtered.sort((a: any, b: any) => (b.apply_count || 0) - (a.apply_count || 0))
+  }
+  // 'latest' 保持默认顺序（created_at desc）
 
   const total = filtered.length
   const from = (page - 1) * pageSize
@@ -104,11 +116,12 @@ export async function GET(request: NextRequest) {
     const jobFunction = searchParams.get('function')
     const salaryMin = searchParams.get('salaryMin')
     const salaryMax = searchParams.get('salaryMax')
-    const q = searchParams.get('q')
+    const q = searchParams.get('q') || searchParams.get('keyword') || ''
+    const sort = searchParams.get('sort') || 'latest'
 
     let query = supabase
       .from('jobs')
-      .select('id, job_number, title, industry, job_function, city, salary_min, salary_max, level, summary, tags, status, is_published, consultant_wechat, view_count, apply_count, created_at', { count: 'exact' })
+      .select('id, job_number, title, industry, job_function, city, salary_min, salary_max, level, summary, tags, status, is_published, consultant_wechat, view_count, apply_count, created_at, company_name_temp', { count: 'exact' })
       .eq('is_published', true)
       .order('created_at', { ascending: false })
 
@@ -117,7 +130,14 @@ export async function GET(request: NextRequest) {
     if (jobFunction) query = query.eq('job_function', jobFunction)
     if (salaryMin) query = query.gte('salary_min', parseInt(salaryMin))
     if (salaryMax) query = query.lte('salary_max', parseInt(salaryMax))
-    if (q) query = query.or(`title.ilike.%${q}%,summary.ilike.%${q}%`)
+    if (q) query = query.or(`title.ilike.%${q}%,summary.ilike.%${q}%,company_name_temp.ilike.%${q}%`)
+
+    // 排序（覆盖默认的 created_at desc）
+    if (sort === 'salary_high') {
+      query = query.order('salary_max', { ascending: false, nullsFirst: false })
+    } else if (sort === 'hot') {
+      query = query.order('apply_count', { ascending: false, nullsFirst: false })
+    }
 
     const from = (page - 1) * pageSize
     const to = from + pageSize - 1

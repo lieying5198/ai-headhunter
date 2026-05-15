@@ -53,18 +53,26 @@ export default function JobListPage() {
     }
   }
 
-  // 从 JSON 文件加载所有职位
+  // 从 API 加载职位（服务端过滤 + 排序，一次加载全部用于前端分页和城市列表）
   const loadJobs = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch('/api/jobs')
+      const params = new URLSearchParams()
+      if (filters.q) params.set('q', filters.q)
+      if (filters.city) params.set('city', filters.city)
+      params.set('sort', filters.sort)
+      params.set('pageSize', '9999')
+
+      const res = await fetch(`/api/jobs?${params.toString()}`)
       const json = await res.json()
-      setAllJobs(json.success ? json.data : [])
+      if (json.success) {
+        setAllJobs(json.data || [])
+      }
     } catch (e) {
       console.error('加载职位数据失败:', e)
     }
     setLoading(false)
-  }, [])
+  }, [filters])
 
   useEffect(() => {
     loadJobs()
@@ -79,34 +87,9 @@ export default function JobListPage() {
     return ['全部', ...Array.from(set).sort()]
   }, [allJobs])
 
-  // 筛选 + 排序
-  const filteredJobs = useMemo(() => {
-    let result = [...allJobs]
-
-    if (filters.city && filters.city !== '全部') {
-      result = result.filter(j => j.city === filters.city)
-    }
-    if (filters.q) {
-      const q = filters.q.toLowerCase()
-      result = result.filter(j =>
-        j.title.toLowerCase().includes(q) ||
-        (j.summary && j.summary.toLowerCase().includes(q)) ||
-        (j.company_name_temp && j.company_name_temp.toLowerCase().includes(q))
-      )
-    }
-
-    // 排序
-    if (filters.sort === 'salary_high') {
-      result.sort((a, b) => (b.salary_max || b.salary_min || 0) - (a.salary_max || a.salary_min || 0))
-    } else if (filters.sort === 'hot') {
-      result.sort((a, b) => (b.apply_count || 0) - (a.apply_count || 0))
-    }
-
-    return result
-  }, [allJobs, filters])
-
-  const totalPages = Math.ceil(filteredJobs.length / pageSize)
-  const pagedJobs = filteredJobs.slice((page - 1) * pageSize, page * pageSize)
+  // 客户端分页（服务端已做排序和过滤）
+  const totalPages = Math.ceil(allJobs.length / pageSize)
+  const pagedJobs = allJobs.slice((page - 1) * pageSize, page * pageSize)
 
   const handleFilterChange = (key: string, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value }))
@@ -199,7 +182,7 @@ export default function JobListPage() {
         {/* 排序 + 计数 */}
         <div className="flex items-center justify-between mb-6">
           <p className="text-sm text-gray-500">
-            找到 <span className="font-bold text-gray-900">{filteredJobs.length}</span> 个职位
+            找到 <span className="font-bold text-gray-900">{allJobs.length}</span> 个职位
           </p>
           <div className="flex gap-2">
             {SORT_OPTIONS.map(opt => (
