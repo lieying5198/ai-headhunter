@@ -30,6 +30,68 @@ const SORT_OPTIONS = [
   { value: 'hot', label: '最热职位', icon: '🔥' },
 ]
 
+// 职能分类定义（关键词匹配职位标题）
+const FUNCTION_CATEGORIES = [
+  {
+    value: '',
+    label: '全部',
+  },
+  {
+    value: 'hr',
+    label: '人力资源类',
+    keywords: ['人事', '人力', 'HR', 'HRBP', '招聘', '薪酬', '培训', '人才', '员工关系', 'COE', '人资', '组织发展', 'OD', '绩效', '干部'],
+  },
+  {
+    value: 'finance',
+    label: '财务类',
+    keywords: ['财务', 'CFO', '会计', '审计', '税务', '资金', '预算', '成本', '投资', '融资', 'FD', '总账', '财控', '内控'],
+  },
+  {
+    value: 'tech',
+    label: '技术类',
+    keywords: ['技术', 'CTO', '研发', '工程师', '架构', 'IT', '数据', 'AI', '开发', '产品', 'PM', '算法', '运维', '前端', '后端', '全栈', '软件', '硬件', '芯片'],
+  },
+  {
+    value: 'admin',
+    label: '董秘总助行政文秘类',
+    keywords: ['董秘', '总助', '行政', '文秘', '秘书', '总裁助理', '助理总裁', '行政总监', '行政经理', '总经理助理', '副总助', 'CEO助理', 'COO助理', '执行助理', '办公室主任'],
+  },
+]
+
+// 薪资档位定义（万/年）
+const SALARY_OPTIONS = [
+  { value: '', label: '全部待遇' },
+  { value: 'under50', label: '50万以下', min: 0, max: 50 },
+  { value: '50to100', label: '50-100万', min: 50, max: 100 },
+  { value: '100to200', label: '100-200万', min: 100, max: 200 },
+  { value: 'above200', label: '200万以上', min: 200, max: Infinity },
+]
+
+// 判断职位是否属于某职能类别
+function matchesFunction(job: Job, funcValue: string): boolean {
+  if (!funcValue) return true
+  const category = FUNCTION_CATEGORIES.find(c => c.value === funcValue)
+  if (!category || !category.keywords) return false
+  const title = (job.title || '').toUpperCase()
+  return category.keywords.some(k => title.includes(k.toUpperCase()))
+}
+
+// 判断职位薪资是否在某个档位范围
+function matchesSalary(job: Job, salaryOption: string): boolean {
+  if (!salaryOption) return true
+  const opt = SALARY_OPTIONS.find(o => o.value === salaryOption)
+  if (!opt || !opt.value) return true
+
+  // 以 salary_max 为主判断（无则用 salary_min）
+  const salaryRef = job.salary_max ?? job.salary_min ?? 0
+
+  if (opt.value === 'under50') return salaryRef < 50
+  if (opt.value === '50to100') return salaryRef >= 50 && salaryRef <= 100
+  if (opt.value === '100to200') return salaryRef >= 100 && salaryRef <= 200
+  if (opt.value === 'above200') return salaryRef > 200
+  return true
+}
+
 export default function JobListPage() {
   const [allJobs, setAllJobs] = useState<Job[]>([])
   const [loading, setLoading] = useState(true)
@@ -39,6 +101,8 @@ export default function JobListPage() {
     city: '',
     q: '',
     sort: 'latest',
+    func: '',
+    salary: '',
   })
   const [showBountyModal, setShowBountyModal] = useState(false)
   const [bountyJob, setBountyJob] = useState<Job | null>(null)
@@ -72,7 +136,7 @@ export default function JobListPage() {
       console.error('加载职位数据失败:', e)
     }
     setLoading(false)
-  }, [filters])
+  }, [filters.q, filters.city, filters.sort])
 
   useEffect(() => {
     loadJobs()
@@ -82,12 +146,10 @@ export default function JobListPage() {
   const cityList = useMemo(() => {
     const set = new Set<string>()
     allJobs.forEach(j => {
-      // 防御性处理：city 可能是对象或字符串
       let cityValue: string | undefined
       if (typeof j.city === 'string') {
         cityValue = j.city
       } else if (j.city && typeof j.city === 'object') {
-        // 如果 city 是对象，尝试提取 .city 或 .name 属性
         cityValue = (j.city as any).city || (j.city as any).name || String(j.city)
       }
       if (cityValue && cityValue !== 'nan' && cityValue !== 'NaN' && cityValue !== '不限' && cityValue !== '[object Object]') {
@@ -97,9 +159,18 @@ export default function JobListPage() {
     return ['全部', ...Array.from(set).sort()]
   }, [allJobs])
 
-  // 客户端分页（服务端已做排序和过滤）
-  const totalPages = Math.ceil(allJobs.length / pageSize)
-  const pagedJobs = allJobs.slice((page - 1) * pageSize, page * pageSize)
+  // 前端筛选（职能 + 薪资档位）
+  const filteredJobs = useMemo(() => {
+    return allJobs.filter(job => {
+      if (!matchesFunction(job, filters.func)) return false
+      if (!matchesSalary(job, filters.salary)) return false
+      return true
+    })
+  }, [allJobs, filters.func, filters.salary])
+
+  // 客户端分页（服务端已做排序和过滤，前端再做职能+薪资过滤）
+  const totalPages = Math.ceil(filteredJobs.length / pageSize)
+  const pagedJobs = filteredJobs.slice((page - 1) * pageSize, page * pageSize)
 
   const handleFilterChange = (key: string, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value }))
@@ -169,30 +240,93 @@ export default function JobListPage() {
 
       {/* 筛选 + 列表区 */}
       <div className="max-w-6xl mx-auto px-4 py-8">
-        {/* 筛选标签 */}
-        <div className="mb-6">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider w-12 shrink-0">城市</span>
-            {cityList.map((city, i) => (
-              <button
-                key={city}
-                onClick={() => handleFilterChange('city', city === '全部' ? '' : city)}
-                className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all ${
-                  (city === '全部' && !filters.city) || filters.city === city
-                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/25 scale-105'
-                    : 'bg-white text-gray-600 hover:bg-gray-100 hover:scale-105'
-                }`}
-              >
-                {city}
-              </button>
-            ))}
+
+        {/* ===== 筛选面板 ===== */}
+        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5 mb-6 space-y-4">
+
+          {/* 城市筛选 */}
+          <div className="flex items-start gap-3">
+            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider w-14 shrink-0 pt-1.5">城市</span>
+            <div className="flex flex-wrap gap-2">
+              {cityList.map((city) => (
+                <button
+                  key={city}
+                  onClick={() => handleFilterChange('city', city === '全部' ? '' : city)}
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all ${
+                    (city === '全部' && !filters.city) || filters.city === city
+                      ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-md shadow-blue-500/25 scale-105'
+                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100 hover:scale-105 border border-gray-200'
+                  }`}
+                >
+                  {city}
+                </button>
+              ))}
+            </div>
           </div>
+
+          {/* 分隔线 */}
+          <div className="border-t border-gray-100" />
+
+          {/* 职能筛选 */}
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider w-14 shrink-0">职能</span>
+            <div className="flex flex-wrap gap-2">
+              {FUNCTION_CATEGORIES.map((cat) => (
+                <button
+                  key={cat.value}
+                  onClick={() => handleFilterChange('func', cat.value)}
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all ${
+                    filters.func === cat.value
+                      ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md shadow-emerald-500/25 scale-105'
+                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100 hover:scale-105 border border-gray-200'
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 分隔线 */}
+          <div className="border-t border-gray-100" />
+
+          {/* 待遇筛选 */}
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider w-14 shrink-0">待遇</span>
+            <div className="flex flex-wrap gap-2">
+              {SALARY_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => handleFilterChange('salary', opt.value)}
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all ${
+                    filters.salary === opt.value
+                      ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-md shadow-orange-500/25 scale-105'
+                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100 hover:scale-105 border border-gray-200'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
         </div>
 
         {/* 排序 + 计数 */}
         <div className="flex items-center justify-between mb-6">
           <p className="text-sm text-gray-500">
-            找到 <span className="font-bold text-gray-900">{allJobs.length}</span> 个职位
+            找到 <span className="font-bold text-gray-900">{filteredJobs.length}</span> 个职位
+            {(filters.func || filters.salary || filters.city) && (
+              <button
+                onClick={() => {
+                  setFilters(prev => ({ ...prev, func: '', salary: '', city: '' }))
+                  setPage(1)
+                }}
+                className="ml-3 text-xs text-blue-500 hover:text-blue-700 underline underline-offset-2"
+              >
+                清除筛选
+              </button>
+            )}
           </p>
           <div className="flex gap-2">
             {SORT_OPTIONS.map(opt => (
@@ -236,6 +370,15 @@ export default function JobListPage() {
             </div>
             <p className="text-gray-500 font-medium">暂无符合条件的职位</p>
             <p className="text-sm text-gray-400 mt-1">试试调整筛选条件</p>
+            <button
+              onClick={() => {
+                setFilters(prev => ({ ...prev, func: '', salary: '', city: '' }))
+                setPage(1)
+              }}
+              className="mt-4 px-6 py-2.5 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-2xl text-sm font-semibold hover:shadow-lg transition-all"
+            >
+              清除所有筛选
+            </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -441,7 +584,6 @@ function JobCard({ job, onReferral }: { job: Job; onReferral: (job: Job) => void
           </Link>
           <div className="flex items-center gap-2 mt-2 text-sm text-gray-500">
             {(() => {
-              // 防御性处理 city 显示
               let cityDisplay: string | null = null
               if (typeof job.city === 'string' && job.city !== 'nan' && job.city !== 'NaN') {
                 cityDisplay = job.city
