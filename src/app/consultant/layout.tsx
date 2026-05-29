@@ -1,5 +1,5 @@
 // src/app/consultant/layout.tsx
-// 顾问后台布局
+// 猎英盟 · 顾问后台布局
 
 export const dynamic = 'force-dynamic'
 

@@ -1,5 +1,5 @@
 // src/app/consultant/jobs/page.tsx
-// 顾问职位管理列表（服务器组件 → 客户端组件分离）
+// 猎英盟 · 顾问职位管理
 
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import Link from 'next/link'
@@ -8,27 +8,28 @@ import JobList from '@/components/consultant/JobList'
 export default async function ConsultantJobsPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-
   const serviceClient = createServiceClient()
 
-  // 未配置数据库时显示空状态
   if (!serviceClient) {
     return (
-      <div className="card p-16 text-center">
-        <div className="text-5xl mb-4">⚙️</div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-2">数据库未配置</h2>
-        <p className="text-gray-500">请配置 Supabase 环境变量</p>
+      <div className="empty-state animate-fade-in-scale">
+        <div className="empty-state-icon">
+          <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        </div>
+        <h3 className="empty-state-title">数据库未配置</h3>
+        <p className="empty-state-desc">请配置 Supabase 环境变量后重试</p>
       </div>
     )
   }
 
-  // 获取顾问列表（用于分配）
   const { data: consultants } = await serviceClient
     .from('consultants')
     .select('id, name, email')
     .order('name')
 
-  // 获取当前顾问的职位
   const { data: jobs, error } = await serviceClient
     .from('jobs')
     .select(`
@@ -41,31 +42,35 @@ export default async function ConsultantJobsPage() {
     .order('created_at', { ascending: false })
 
   return (
-    <div>
+    <div className="animate-fade-in-up">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">职位管理</h1>
-          <p className="text-sm text-gray-500 mt-1">共 {jobs?.length || 0} 个职位</p>
+          <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">职位管理</h1>
+          <p className="text-sm text-gray-400 mt-1">共 {jobs?.length || 0} 个职位</p>
         </div>
         <Link href="/consultant/jobs/import" className="btn-primary flex items-center gap-2">
-          <span>+</span> 导入新职位
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          导入新职位
         </Link>
       </div>
 
       {!jobs || jobs.length === 0 ? (
-        <div className="card p-16 text-center">
-          <div className="text-5xl mb-4">📋</div>
-          <h2 className="text-lg font-semibold text-gray-900 mb-2">还没有职位</h2>
-          <p className="text-gray-500 mb-6">导入Excel/Word/PDF或手动输入来创建职位</p>
-          <Link href="/consultant/jobs/import" className="btn-primary">
+        <div className="empty-state">
+          <div className="empty-state-icon">
+            <svg className="w-8 h-8 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+          <h3 className="empty-state-title">还没有职位</h3>
+          <p className="empty-state-desc">导入 Excel / Word / PDF 或手动输入来创建职位</p>
+          <Link href="/consultant/jobs/import" className="btn-primary mt-4">
             立即导入职位
           </Link>
         </div>
       ) : (
-        <JobList
-          jobs={jobs as any}
-          consultants={consultants || []}
-        />
+        <JobList jobs={jobs as any} consultants={consultants || []} />
       )}
     </div>
   )

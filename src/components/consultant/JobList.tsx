@@ -56,8 +56,8 @@ export default function JobList({ jobs, consultants }: Props) {
     <form action={batchJobAction} id="batch-form">
       {/* 批量操作栏 */}
       {count > 0 && (
-        <div className="flex items-center gap-3 mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-          <span className="text-sm font-medium text-blue-700">
+        <div className="flex items-center gap-3 mb-4 p-3 bg-orange-50 rounded-xl border border-orange-100">
+          <span className="text-sm font-semibold text-orange-700">
             已选择 {count} 个职位
           </span>
           
@@ -66,28 +66,31 @@ export default function JobList({ jobs, consultants }: Props) {
               type="submit"
               name="action"
               value="publish"
-              className="btn-sm btn-success"
+              className="text-xs px-3 py-1.5 rounded-lg font-medium bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 transition-colors"
             >
-              📤 批量上架
+              <svg className="w-3.5 h-3.5 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+              批量上架
             </button>
             <button
               type="submit"
               name="action"
               value="unpublish"
-              className="btn-sm btn-warning"
+              className="text-xs px-3 py-1.5 rounded-lg font-medium bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 transition-colors"
             >
-              📥 批量下架
+              <svg className="w-3.5 h-3.5 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M13 13l-3 3m0 0l3 3m-3-3h8" /></svg>
+              批量下架
             </button>
             <button
               type="submit"
               name="action"
               value="delete"
-              className="btn-sm btn-danger"
+              className="text-xs px-3 py-1.5 rounded-lg font-medium bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 transition-colors"
               onClick={(e) => {
                 if (!confirm(`确定删除选中的 ${count} 个职位吗？`)) e.preventDefault()
               }}
             >
-              🗑️ 批量删除
+              <svg className="w-3.5 h-3.5 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+              批量删除
             </button>
           </div>
 

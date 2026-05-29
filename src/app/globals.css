@@ -1,27 +1,528 @@
+/* ============================================
+   猎英盟 AI猎头平台 — 设计系统
+   品牌色：橙红渐变（#FF6600 → #FF3300）
+   美学方向：专业猎头 · 温暖人文 · 数据驱动
+   ============================================ */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================
+   DESIGN TOKENS — CSS Custom Properties
+   ============================================ */
 @layer base {
+  :root {
+    /* ── 品牌色 Brand Colors ── */
+    --brand-orange: #FF6600;
+    --brand-red: #FF3300;
+    --brand-deep: #CC2900;
+    --brand-light: #FFF1E6;
+    --brand-soft: #FFE8D4;
+    --brand-gradient: linear-gradient(135deg, #FF6600, #FF3300);
+    --brand-gradient-light: linear-gradient(135deg, #FF8A3D, #FF5C33);
+
+    /* ── 语义色 Semantic Colors ── */
+    --color-success: #16A34A;
+    --color-success-bg: #F0FDF4;
+    --color-warning: #D97706;
+    --color-warning-bg: #FFFBEB;
+    --color-error: #DC2626;
+    --color-error-bg: #FEF2F2;
+    --color-info: #2563EB;
+    --color-info-bg: #EFF6FF;
+
+    /* ── 中性色 Neutral ── */
+    --gray-50: #F9FAFB;
+    --gray-100: #F3F4F6;
+    --gray-200: #E5E7EB;
+    --gray-300: #D1D5DB;
+    --gray-400: #9CA3AF;
+    --gray-500: #6B7280;
+    --gray-600: #4B5563;
+    --gray-700: #374151;
+    --gray-800: #1F2937;
+    --gray-900: #111827;
+
+    /* ── 字体 Typography ── */
+    --font-sans: 'Inter', 'PingFang SC', 'Microsoft YaHei', system-ui, -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+
+    /* 字号 Scale */
+    --text-xs: 0.75rem;
+    --text-sm: 0.875rem;
+    --text-base: 1rem;
+    --text-lg: 1.125rem;
+    --text-xl: 1.25rem;
+    --text-2xl: 1.5rem;
+    --text-3xl: 1.875rem;
+    --text-4xl: 2.25rem;
+
+    /* ── 间距 Spacing (8px grid) ── */
+    --space-1: 0.25rem;
+    --space-2: 0.5rem;
+    --space-3: 0.75rem;
+    --space-4: 1rem;
+    --space-6: 1.5rem;
+    --space-8: 2rem;
+    --space-12: 3rem;
+    --space-16: 4rem;
+
+    /* ── 圆角 Border Radius ── */
+    --radius-sm: 0.375rem;
+    --radius-md: 0.5rem;
+    --radius-lg: 0.75rem;
+    --radius-xl: 1rem;
+    --radius-2xl: 1.5rem;
+    --radius-3xl: 2rem;
+
+    /* ── 阴影 Shadows ── */
+    --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -2px rgba(0,0,0,0.05);
+    --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.08), 0 4px 6px -4px rgba(0,0,0,0.04);
+    --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.04);
+    --shadow-brand: 0 4px 14px rgba(255, 102, 0, 0.25);
+
+    /* ── 过渡与缓动 Transitions ── */
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --duration-fast: 150ms;
+    --duration-normal: 250ms;
+    --duration-slow: 400ms;
+  }
+
+  /* ── 基础重置 ── */
+  *, *::before, *::after {
+    border-color: var(--gray-200);
+  }
+
   html {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    color: var(--gray-800);
+    background: var(--gray-50);
+  }
+
+  /* ── 选区颜色 ── */
+  ::selection {
+    background: rgba(255, 102, 0, 0.2);
+    color: var(--gray-900);
   }
 }
 
+/* ============================================
+   COMPONENT SYSTEM — 组件库
+   ============================================ */
 @layer components {
+  /* ── 按钮 Button ── */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 font-semibold text-sm px-5 py-2.5 rounded-xl transition-all duration-200 select-none;
+    @apply focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-orange)];
+    @apply disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none;
+  }
+  .btn:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+
   .btn-primary {
-    @apply bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-colors;
+    @apply btn;
+    background: var(--brand-gradient);
+    color: white;
+    box-shadow: var(--shadow-brand);
   }
+  .btn-primary:hover:not(:disabled) {
+    background: var(--brand-gradient-light);
+    box-shadow: 0 6px 20px rgba(255, 102, 0, 0.35);
+    transform: translateY(-1px);
+  }
+
   .btn-secondary {
-    @apply bg-white hover:bg-gray-50 text-gray-700 font-medium px-4 py-2 rounded-lg border border-gray-200 transition-colors;
+    @apply btn;
+    background: white;
+    color: var(--gray-700);
+    border: 1px solid var(--gray-200);
   }
+  .btn-secondary:hover:not(:disabled) {
+    background: var(--gray-50);
+    border-color: var(--gray-300);
+  }
+
+  .btn-ghost {
+    @apply btn;
+    background: transparent;
+    color: var(--gray-600);
+  }
+  .btn-ghost:hover:not(:disabled) {
+    background: var(--gray-100);
+    color: var(--gray-900);
+  }
+
+  .btn-size-sm {
+    @apply px-3 py-1.5 text-xs rounded-lg;
+  }
+  .btn-size-lg {
+    @apply px-6 py-3.5 text-base rounded-2xl;
+  }
+
+  /* ── 卡片 Card ── */
   .card {
-    @apply bg-white rounded-xl border border-gray-200 shadow-sm;
+    @apply bg-white rounded-2xl border border-gray-100;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow var(--duration-normal) var(--ease-out-quart),
+                transform var(--duration-normal) var(--ease-out-quart);
   }
+  .card-hover {
+    @apply card cursor-pointer;
+  }
+  .card-hover:hover {
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+    border-color: var(--brand-orange);
+    border-color: rgba(255, 102, 0, 0.15);
+  }
+
+  /* ── 输入框 Input ── */
   .input {
-    @apply w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+    @apply w-full px-4 py-3 text-sm rounded-xl border border-gray-200;
+    @apply bg-white text-gray-900 placeholder:text-gray-400;
+    @apply transition-all duration-200;
+    @apply focus:outline-none focus:border-[var(--brand-orange)] focus:ring-2 focus:ring-[rgba(255,102,0,0.12)];
   }
+  .input-error {
+    @apply border-red-300 focus:border-red-500 focus:ring-red-100;
+  }
+
+  /* ── 标签 Label ── */
   .label {
-    @apply block text-sm font-medium text-gray-700 mb-1;
+    @apply block text-sm font-semibold text-gray-700 mb-1.5;
   }
+
+  /* ── 徽章 Badge ── */
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold;
+  }
+  .badge-success {
+    @apply badge bg-[var(--color-success-bg)] text-[var(--color-success)];
+  }
+  .badge-warning {
+    @apply badge bg-[var(--color-warning-bg)] text-[var(--color-warning)];
+  }
+  .badge-error {
+    @apply badge bg-[var(--color-error-bg)] text-[var(--color-error)];
+  }
+  .badge-info {
+    @apply badge bg-[var(--color-info-bg)] text-[var(--color-info)];
+  }
+  .badge-brand {
+    @apply badge bg-[var(--brand-light)] text-[var(--brand-deep)];
+  }
+
+  /* ── 统计卡片 Stat Card ── */
+  .stat-card {
+    @apply bg-white rounded-2xl p-5 border border-gray-100;
+    box-shadow: var(--shadow-sm);
+    transition: all var(--duration-normal) var(--ease-out-quart);
+  }
+  .stat-card:hover {
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+  }
+  .stat-card-value {
+    @apply text-3xl font-extrabold text-gray-900 tracking-tight;
+  }
+  .stat-card-label {
+    @apply text-sm font-medium text-gray-500 mt-1;
+  }
+
+  /* ── 空状态 Empty State ── */
+  .empty-state {
+    @apply flex flex-col items-center justify-center py-16 px-8 text-center;
+  }
+  .empty-state-icon {
+    @apply w-16 h-16 mb-4 rounded-2xl flex items-center justify-center;
+    background: var(--brand-light);
+  }
+  .empty-state-title {
+    @apply text-lg font-bold text-gray-900 mb-2;
+  }
+  .empty-state-desc {
+    @apply text-sm text-gray-500 max-w-md;
+  }
+
+  /* ── Skeleton Loading ── */
+  .skeleton {
+    @apply rounded-lg animate-pulse;
+    background: linear-gradient(90deg, var(--gray-100) 25%, var(--gray-50) 50%, var(--gray-100) 75%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s ease-in-out infinite;
+  }
+  @keyframes skeleton-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* ── 渐变文字 Brand Text ── */
+  .brand-text {
+    background: var(--brand-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* ── 分割线 Divider ── */
+  .divider {
+    @apply border-t border-gray-100;
+  }
+
+  /* ── 页面容器 ── */
+  .page-container {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+}
+
+/* ============================================
+   ANIMATIONS — 动效系统
+   ============================================ */
+@layer utilities {
+  /* ── 入场动画 ── */
+  @keyframes fade-in-up {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes fade-in-scale {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  .animate-fade-in-up {
+    animation: fade-in-up 0.4s var(--ease-out-expo) both;
+  }
+  .animate-fade-in-scale {
+    animation: fade-in-scale 0.3s var(--ease-out-expo) both;
+  }
+
+  /* 子元素延迟 */
+  .stagger-children > * {
+    opacity: 0;
+    animation: fade-in-up 0.4s var(--ease-out-expo) forwards;
+  }
+  .stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+  .stagger-children > *:nth-child(2) { animation-delay: 80ms; }
+  .stagger-children > *:nth-child(3) { animation-delay: 160ms; }
+  .stagger-children > *:nth-child(4) { animation-delay: 240ms; }
+  .stagger-children > *:nth-child(5) { animation-delay: 320ms; }
+  .stagger-children > *:nth-child(6) { animation-delay: 400ms; }
+
+  /* ── 减少动效偏好 ── */
+  @media (prefers-reduced-motion: reduce) {
+    .animate-fade-in-up,
+    .animate-fade-in-scale,
+    .stagger-children > * {
+      animation: none;
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+/* ============================================
+   SCROLLBAR — 自定义滚动条
+   ============================================ */
+@layer base {
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--gray-300);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--gray-400);
+  }
+}
+
+/* ============================================
+   DARK MODE — 暗色主题
+   触发: <html data-theme="dark">
+   ============================================ */
+[data-theme="dark"] {
+  /* ── Primer (neutral swap) ── */
+  --gray-50: #1A1A2E;
+  --gray-100: #252540;
+  --gray-200: #333350;
+  --gray-300: #454560;
+  --gray-400: #6B6B80;
+  --gray-500: #8E8EA0;
+  --gray-600: #B0B0C0;
+  --gray-700: #D0D0DD;
+  --gray-800: #E8E8F0;
+  --gray-900: #F5F5FA;
+
+  /* ── Brand (slightly brighter for dark bg) ── */
+  --brand-orange: #FF8533;
+  --brand-red: #FF5C33;
+  --brand-deep: #FF3D00;
+  --brand-light: #2D1A0D;
+  --brand-soft: #3D2414;
+
+  /* ── Semantic (darker backgrounds) ── */
+  --color-success-bg: #0A2E0F;
+  --color-warning-bg: #2E2106;
+  --color-error-bg: #2E0A0A;
+  --color-info-bg: #0A142E;
+
+  /* ── Shadows (lighter on dark) ── */
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.4);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.4);
+  --shadow-lg: 0 10px 15px rgba(0,0,0,0.5);
+  --shadow-xl: 0 20px 25px rgba(0,0,0,0.5);
+  --shadow-brand: 0 4px 14px rgba(255, 133, 51, 0.3);
+}
+
+/* ── Dark mode overrides for component classes ── */
+[data-theme="dark"] body {
+  background: var(--gray-50);
+  color: var(--gray-800);
+}
+
+[data-theme="dark"] .card,
+[data-theme="dark"] .stat-card {
+  background: var(--gray-100);
+  border-color: var(--gray-200);
+}
+
+[data-theme="dark"] .btn-secondary {
+  background: var(--gray-100);
+  color: var(--gray-700);
+  border-color: var(--gray-200);
+}
+
+[data-theme="dark"] .btn-secondary:hover {
+  background: var(--gray-200);
+  border-color: var(--gray-300);
+}
+
+[data-theme="dark"] .btn-ghost {
+  color: var(--gray-500);
+}
+
+[data-theme="dark"] .btn-ghost:hover {
+  background: var(--gray-200);
+  color: var(--gray-900);
+}
+
+[data-theme="dark"] .input {
+  background: var(--gray-100);
+  color: var(--gray-800);
+  border-color: var(--gray-200);
+}
+
+[data-theme="dark"] .input::placeholder {
+  color: var(--gray-500);
+}
+
+[data-theme="dark"] .label {
+  color: var(--gray-600);
+}
+
+[data-theme="dark"] .skeleton {
+  background: linear-gradient(90deg, var(--gray-200) 25%, var(--gray-100) 50%, var(--gray-200) 75%);
+  background-size: 200% 100%;
+}
+
+[data-theme="dark"] .divider {
+  border-color: var(--gray-200);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: var(--gray-400);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: var(--gray-500);
+}
+
+/* ── Dark mode: Tailwind utility-aware overrides ── */
+[data-theme="dark"] .bg-white {
+  background-color: var(--gray-100) !important;
+}
+
+[data-theme="dark"] .bg-gray-50 {
+  background-color: var(--gray-50) !important;
+}
+
+[data-theme="dark"] .bg-gray-100 {
+  background-color: var(--gray-200) !important;
+}
+
+[data-theme="dark"] .text-gray-900 {
+  color: var(--gray-900) !important;
+}
+
+[data-theme="dark"] .text-gray-800 {
+  color: var(--gray-800) !important;
+}
+
+[data-theme="dark"] .text-gray-700 {
+  color: var(--gray-700) !important;
+}
+
+[data-theme="dark"] .text-gray-600 {
+  color: var(--gray-600) !important;
+}
+
+[data-theme="dark"] .text-gray-500 {
+  color: var(--gray-500) !important;
+}
+
+[data-theme="dark"] .text-gray-400 {
+  color: var(--gray-400) !important;
+}
+
+[data-theme="dark"] .border-gray-100 {
+  border-color: var(--gray-200) !important;
+}
+
+[data-theme="dark"] .border-gray-200 {
+  border-color: var(--gray-300) !important;
+}
+
+[data-theme="dark"] .border-gray-50 {
+  border-color: var(--gray-200) !important;
+}
+
+[data-theme="dark"] .hover\:bg-gray-50:hover {
+  background-color: var(--gray-200) !important;
+}
+
+[data-theme="dark"] .hover\:bg-gray-100:hover {
+  background-color: var(--gray-200) !important;
+}
+
+[data-theme="dark"] .hover\:bg-gray-200:hover {
+  background-color: var(--gray-300) !important;
 }
