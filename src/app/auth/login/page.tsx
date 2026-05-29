@@ -95,10 +95,8 @@ export default function LoginPage() {
               setQrStatus('expired')
               setQrError('二维码已过期，请重新生成')
               if (pollRef.current) clearInterval(pollRef.current)
-            } else if (statusData.status === 'pending') {
-              // 已确认但还需要其他验证
-              setQrStatus('scanned')
             }
+            // pending: 等待扫码，不改变UI状态，保持"请扫描二维码"提示
           } catch {
             // 轮询失败，忽略
           }

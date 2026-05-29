@@ -1,8 +1,9 @@
 // POST /api/auth/qr-generate
-// 生成扫码登录Token和QR码URL
+// 生成扫码登录Token和QR码
 
 import { NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
+import QRCode from 'qrcode'
 
 export async function POST() {
   try {
@@ -40,8 +41,12 @@ export async function POST() {
     }
 
     const qrUrl = `${origin}/api/auth/qr-confirm?token=${token}`
-    // 使用免费QR码生成服务
-    const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(qrUrl)}`
+    // 本地生成QR码SVG（不依赖第三方API）
+    const qrImageUrl = await QRCode.toDataURL(qrUrl, {
+      width: 220,
+      margin: 2,
+      color: { dark: '#000000', light: '#ffffff' },
+    })
 
     return NextResponse.json({
       token,
