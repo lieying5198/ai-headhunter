@@ -2,12 +2,12 @@
 // 生成扫码登录Token和QR码
 
 import { NextResponse } from 'next/server'
-import { v4 as uuidv4 } from 'uuid'
+import crypto from 'crypto'
 import QRCode from 'qrcode'
 
 export async function POST() {
   try {
-    const token = uuidv4().replace(/-/g, '')
+    const token = crypto.randomUUID().replace(/-/g, '')
     const origin = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString() // 5分钟过期
 
