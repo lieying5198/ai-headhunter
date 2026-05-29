@@ -314,7 +314,7 @@ export default function JobListPage() {
                     : 'bg-white text-gray-500 hover:bg-gray-100'
                 }`}
               >
-                {opt.icon} {opt.label}
+                {opt.label}
               </button>
             ))}
           </div>
