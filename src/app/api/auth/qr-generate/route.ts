@@ -1,16 +1,14 @@
 // POST /api/auth/qr-generate
 // 生成扫码登录Token和QR码
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import crypto from 'crypto'
 import QRCode from 'qrcode'
 
-export async function POST(req: NextRequest) {
+export async function POST() {
   try {
     const token = crypto.randomUUID().replace(/-/g, '')
-    const host = req.headers.get('host') || '1.14.202.115'
-    const protocol = req.headers.get('x-forwarded-proto') || (req.headers.get('host')?.includes('localhost') ? 'http' : 'http')
-    const origin = `${protocol}://${host}`
+    const origin = process.env.NEXT_PUBLIC_APP_URL || 'http://1.14.202.115'
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString() // 5分钟过期
 
     // 直接通过REST API写入Supabase（使用service key）
