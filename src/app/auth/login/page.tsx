@@ -16,7 +16,7 @@ export default function LoginPage() {
   const [message, setMessage] = useState('')
 
   // 微信扫码登录状态
-  const [showQR, setShowQR] = useState(false)
+  const [showQR, setShowQR] = useState(true)
   const [qrImage, setQrImage] = useState('')
   const [qrToken, setQrToken] = useState('')
   const [qrStatus, setQrStatus] = useState<'idle' | 'loading' | 'scanned' | 'confirmed' | 'expired'>('idle')
@@ -25,6 +25,13 @@ export default function LoginPage() {
 
   const router = useRouter()
   const supabase = createClient()
+
+  // 当切换到 QR 模式时自动生成二维码（包括首次加载）
+  useEffect(() => {
+    if (showQR && !qrToken) {
+      handleWeChatLogin()
+    }
+  }, [showQR])
 
   // 清理轮询
   useEffect(() => {
