@@ -5,17 +5,20 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = new URL(request.url)
+  const { searchParams } = new URL(request.url)
   const token = searchParams.get('token')
 
+  // 使用环境变量获取真实公网域名，而非 Nginx 反向代理后的内网地址
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+
   if (!token) {
-    return NextResponse.redirect(`${origin}/auth/login?error=qr_no_token`)
+    return NextResponse.redirect(`${appUrl}/auth/login?error=qr_no_token`)
   }
 
   try {
     const supabase = createServiceClient()
     if (!supabase) {
-      return NextResponse.redirect(`${origin}/auth/login?error=no_supabase`)
+      return NextResponse.redirect(`${appUrl}/auth/login?error=no_supabase`)
     }
 
     // 1. 验证token
@@ -27,28 +30,26 @@ export async function GET(request: NextRequest) {
       .single()
 
     if (tokenError || !tokenData) {
-      return NextResponse.redirect(`${origin}/auth/login?error=qr_invalid`)
+      return NextResponse.redirect(`${appUrl}/auth/login?error=qr_invalid`)
     }
 
     if (!tokenData.user_id) {
-      return NextResponse.redirect(`${origin}/auth/login?error=qr_no_user`)
+      return NextResponse.redirect(`${appUrl}/auth/login?error=qr_no_user`)
     }
 
     // 2. 用service role获取用户的email
     const { data: { user }, error: userError } = await supabase.auth.admin.getUserById(tokenData.user_id)
 
     if (userError || !user || !user.email) {
-      return NextResponse.redirect(`${origin}/auth/login?error=user_not_found`)
+      return NextResponse.redirect(`${appUrl}/auth/login?error=user_not_found`)
     }
 
     // 3. 生成一个临时的sign-in link（passwordless magic link方式）
-    // Supabase没有直接"以某用户身份登录"的API，但可以用generateLink
-    // 更简单的方法：生成一个sign-in magic link并自动follow
     const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
       type: 'magiclink',
       email: user.email,
       options: {
-        redirectTo: `${origin}/api/auth/callback?next=/consultant/dashboard`,
+        redirectTo: `${appUrl}/api/auth/callback?next=/consultant/dashboard`,
       },
     })
 
@@ -76,7 +77,7 @@ export async function GET(request: NextRequest) {
         const verifyData = await verifyResp.json()
 
         // 5. 设置session cookie并redirect
-        const response = NextResponse.redirect(`${origin}/consultant/dashboard`)
+        const response = NextResponse.redirect(`${appUrl}/consultant/dashboard`)
 
         if (verifyData.access_token) {
           // Set Supabase session cookie
@@ -87,7 +88,7 @@ export async function GET(request: NextRequest) {
           }), {
             path: '/',
             httpOnly: true,
-            secure: origin.startsWith('https'),
+            secure: appUrl.startsWith('https'),
             sameSite: 'lax',
             maxAge: verifyData.expires_in,
           })
@@ -100,9 +101,9 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return NextResponse.redirect(`${origin}/auth/login?error=qr_verify_failed`)
+    return NextResponse.redirect(`${appUrl}/auth/login?error=qr_verify_failed`)
   } catch (err) {
     console.error('QR session error:', err)
-    return NextResponse.redirect(`${origin}/auth/login?error=qr_session_error`)
+    return NextResponse.redirect(`${appUrl}/auth/login?error=qr_session_error`)
   }
 }
