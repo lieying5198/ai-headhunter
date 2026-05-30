@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
 
     if (linkError || !linkData) {
       console.error('Magic link error:', linkError)
-      return NextResponse.redirect(`${origin}/auth/login?error=session_failed`)
+      return NextResponse.redirect(`${appUrl}/auth/login?error=session_failed`)
     }
 
     // 4. 自动follow magic link来建立session
