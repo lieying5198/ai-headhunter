@@ -194,7 +194,60 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '该邮箱尚未创建登录账号，请先通过邮箱密码登录一次激活账号' }, { status: 404 })
     }
 
-    // 4. 标记token为已确认（user_id 存的是 auth.users.id）
+    // 4. 生成 magic link 并获取真实 session token
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    let accessToken: string | null = null
+    let refreshToken: string | null = null
+    let expiresAt: number | null = null
+
+    try {
+      const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+        type: 'magiclink',
+        email: authUser.email!,
+        options: {
+          redirectTo: `${appUrl}/api/auth/callback?next=/consultant/dashboard`,
+        },
+      })
+
+      if (!linkError && linkData) {
+        // 解析 magic link 中的 token_hash
+        const magicUrl = new URL(linkData.properties.action_link)
+        const tokenHash = magicUrl.searchParams.get('token_hash')
+        const type = magicUrl.searchParams.get('type') || 'magiclink'
+
+        if (tokenHash) {
+          // 调用 Supabase verify 端点换取真实 session
+          const verifyResp = await fetch(
+            `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/verify`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+              },
+              body: JSON.stringify({
+                type,
+                token_hash: tokenHash,
+              }),
+            }
+          )
+
+          if (verifyResp.ok) {
+            const verifyData = await verifyResp.json()
+            accessToken = verifyData.access_token || null
+            refreshToken = verifyData.refresh_token || null
+            expiresAt = verifyData.expires_in
+              ? Math.floor(Date.now() / 1000) + verifyData.expires_in
+              : null
+          }
+        }
+      }
+    } catch (magicErr) {
+      console.error('Magic link generation failed:', magicErr)
+      // 即使 magic link 失败，仍然标记 confirmed（用户仍可用邮箱密码登录）
+    }
+
+    // 5. 标记token为已确认，附上 session token（供前端 setSession 使用）
     const { error: updateError } = await supabase
       .from('auth_qr_tokens')
       .update({
@@ -205,6 +258,9 @@ export async function POST(request: NextRequest) {
           user_id: authUser.id,
           email: consultant.email,
           name: consultant.name,
+          access_token: accessToken,
+          refresh_token: refreshToken,
+          expires_at: expiresAt,
         },
       })
       .eq('token', token)

@@ -96,16 +96,34 @@ export default function LoginPage() {
             if (statusData.status === 'confirmed') {
               setQrStatus('confirmed')
               if (pollRef.current) clearInterval(pollRef.current)
-              // 跳转到session创建端点（服务端处理cookie和重定向）
-              window.location.href = `/api/auth/qr-session?token=${data.token}`
+
+              // 优先用 session token 客户端直接建会话
+              const session = statusData.session
+              if (session?.access_token) {
+                const { error: sessionError } = await supabase.auth.setSession({
+                  access_token: session.access_token,
+                  refresh_token: session.refresh_token,
+                })
+                if (!sessionError) {
+                  router.push('/consultant/dashboard')
+                  router.refresh()
+                } else {
+                  console.error('setSession failed:', sessionError)
+                  setQrError('登录失败，请尝试邮箱密码登录')
+                  setQrStatus('idle')
+                }
+              } else {
+                // 降级：走 qr-session 服务端路由（兼容旧逻辑）
+                window.location.href = `/api/auth/qr-session?token=${data.token}`
+              }
             } else if (statusData.status === 'expired') {
               setQrStatus('expired')
               setQrError('二维码已过期，请重新生成')
               if (pollRef.current) clearInterval(pollRef.current)
             }
             // pending: 等待扫码，不改变UI状态，保持"请扫描二维码"提示
-          } catch {
-            // 轮询失败，忽略
+          } catch (err) {
+            console.error('QR poll error:', err)
           }
         }, 2000)
       } else {
