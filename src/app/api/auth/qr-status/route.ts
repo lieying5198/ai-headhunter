@@ -24,26 +24,45 @@ export async function GET(request: NextRequest) {
       .eq('token', token)
       .single()
 
+    // 禁止缓存 - Nginx proxy_cache 会缓存这个轮询端点
+    const noCacheHeaders = {
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+    }
+
     if (error) {
-      return NextResponse.json({ status: 'expired', message: 'Token已过期或不存在' })
+      return NextResponse.json(
+        { status: 'expired', message: 'Token已过期或不存在' },
+        { headers: noCacheHeaders }
+      )
     }
 
     if (!data) {
-      return NextResponse.json({ status: 'expired', message: 'Token不存在' })
+      return NextResponse.json(
+        { status: 'expired', message: 'Token不存在' },
+        { headers: noCacheHeaders }
+      )
     }
 
     if (new Date(data.expires_at) < new Date()) {
-      return NextResponse.json({ status: 'expired', message: '二维码已过期' })
+      return NextResponse.json(
+        { status: 'expired', message: '二维码已过期' },
+        { headers: noCacheHeaders }
+      )
     }
 
     if (data.status === 'confirmed') {
-      return NextResponse.json({
-        status: 'confirmed',
-        session: data.session_data,
-      })
+      return NextResponse.json(
+        { status: 'confirmed', session: data.session_data },
+        { headers: noCacheHeaders }
+      )
     }
 
-    return NextResponse.json({ status: data.status })
+    return NextResponse.json(
+      { status: data.status },
+      { headers: noCacheHeaders }
+    )
   } catch (err) {
     console.error('QR status error:', err)
     return NextResponse.json({ error: '服务器错误' }, { status: 500 })
