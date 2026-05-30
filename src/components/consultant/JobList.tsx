@@ -22,7 +22,7 @@ interface Job {
   tags?: string[]
   created_at: string
   consultant_id?: string
-  hidden_company?: { anonymized_name: string }
+  hidden_company?: { anonymized_name: string; real_name?: string }
 }
 
 interface Props {
@@ -177,6 +177,9 @@ export default function JobList({ jobs, consultants }: Props) {
                 {job.hidden_company?.anonymized_name && (
                   <div className="text-xs text-gray-400">
                     客户：{job.hidden_company.anonymized_name}
+                    {job.hidden_company.real_name && job.hidden_company.real_name !== job.hidden_company.anonymized_name && (
+                      <span className="text-orange-500 ml-1">({job.hidden_company.real_name})</span>
+                    )}
                   </div>
                 )}
 

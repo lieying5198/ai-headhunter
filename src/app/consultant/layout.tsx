@@ -29,6 +29,7 @@ export default async function ConsultantLayout({
       <ConsultantNav
         name={consultant?.name || user.email || '顾问'}
         email={consultant?.email || user.email || ''}
+        role={consultant?.role}
       />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {children}

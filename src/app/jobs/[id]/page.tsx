@@ -1,7 +1,7 @@
 // src/app/jobs/[id]/page.tsx
 // 猎英盟 · 职位详情页 - 品牌化设计，移动端优先
 
-import { createServiceClient } from '@/lib/supabase/server'
+import { createServiceClient, createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import JobDetailClient from '@/components/job/JobDetailClient'
@@ -55,12 +55,18 @@ export default async function JobDetailPage({ params }: Props) {
   const { id } = await params
   let job: any = null
   let company: any = null
+  let isAuthenticated = false
   let wechats: Array<{ id: string, wechat_id: string, nickname: string, is_primary: boolean, is_online: boolean }> = []
   let error: any = null
 
   if (isSupabaseConfigured()) {
     try {
       const supabase = createServiceClient()
+      // 检查当前用户是否已登录
+      const authClient = await createClient()
+      const { data: { session } } = await authClient.auth.getSession()
+      isAuthenticated = !!session
+      
       if (supabase) {
         const { data: dbJob, error: dbError } = await supabase
           .from('jobs')
@@ -83,7 +89,7 @@ export default async function JobDetailPage({ params }: Props) {
           if (job.hidden_company_id) {
             const { data: companyData } = await supabase
               .from('hidden_company_profiles')
-              .select('anonymized_name, industry, scale, stage, is_listed')
+              .select('anonymized_name, real_name, industry, scale, stage, is_listed')
               .eq('id', job.hidden_company_id).single()
             company = companyData
           }
@@ -574,6 +580,13 @@ export default async function JobDetailPage({ params }: Props) {
             </h2>
             <div className="space-y-3 text-sm">
               <InfoRow label="公司名称" value={company.anonymized_name} />
+              {/* 内部信息：登录用户可见真实名称 */}
+              {isAuthenticated && company.real_name && company.real_name !== company.anonymized_name && (
+                <div className="flex justify-between py-1 border-b border-gray-50">
+                  <span className="text-gray-400">真实名称（内部）</span>
+                  <span className="font-semibold text-orange-600">{company.real_name}</span>
+                </div>
+              )}
               {company.industry && <InfoRow label="所属行业" value={company.industry} />}
               {company.scale && <InfoRow label="公司规模" value={company.scale} />}
               {company.stage && <InfoRow label="发展阶段" value={company.stage} />}

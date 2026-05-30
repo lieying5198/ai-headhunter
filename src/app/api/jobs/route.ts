@@ -185,12 +185,59 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: '数据库未配置' }, { status: 500 })
   }
 
+  // 处理 hidden_company: 如果传了 company_name，先 upsert
+  let hiddenCompanyId = body.hidden_company_id || null
+  if (!hiddenCompanyId && body.company_name) {
+    // 尝试查找已有公司
+    const { data: existing } = await serviceClient
+      .from('hidden_company_profiles')
+      .select('id')
+      .eq('real_name', body.company_name)
+      .maybeSingle()
+    
+    if (existing) {
+      hiddenCompanyId = existing.id
+    } else {
+      // 创建新公司档案
+      const { data: newCompany } = await serviceClient
+        .from('hidden_company_profiles')
+        .insert({
+          real_name: body.company_name,
+          anonymized_name: body.company_anonymized_name || `某${body.company_industry || '行业'}企业`,
+          industry: body.company_industry || null,
+          scale: body.company_scale || null,
+          stage: body.company_stage || null,
+        })
+        .select('id')
+        .single()
+      if (newCompany) hiddenCompanyId = newCompany.id
+    }
+  }
+
   const { data, error } = await serviceClient
     .from('jobs')
     .insert({
       consultant_id: user.id,
+      hidden_company_id: hiddenCompanyId,
       title: body.title || '待处理',
-      raw_jd: body.raw_jd,
+      industry: body.industry || null,
+      job_function: body.job_function || null,
+      city: body.city || null,
+      salary_min: body.salary_min || null,
+      salary_max: body.salary_max || null,
+      level: body.level || null,
+      raw_jd: body.raw_jd || null,
+      summary: body.summary || null,
+      tags: body.tags || [],
+      requirements: body.requirements || [],
+      responsibilities: body.responsibilities || [],
+      education_requirement: body.education_requirement || null,
+      experience_years: body.experience_years || null,
+      hire_count: body.hire_count || null,
+      department: body.department || null,
+      reports_to: body.reports_to || null,
+      interview_process: body.interview_process || null,
+      source: 'manual',
       status: 'draft',
     })
     .select()

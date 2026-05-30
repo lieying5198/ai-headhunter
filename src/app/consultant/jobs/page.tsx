@@ -36,7 +36,7 @@ export default async function ConsultantJobsPage() {
       id, title, industry, city, salary_min, salary_max,
       level, status, is_published, view_count, apply_count,
       summary, tags, created_at, consultant_id,
-      hidden_company:hidden_company_profiles(anonymized_name)
+      hidden_company:hidden_company_profiles(anonymized_name, real_name)
     `)
     .eq('consultant_id', user!.id)
     .order('created_at', { ascending: false })
@@ -48,12 +48,20 @@ export default async function ConsultantJobsPage() {
           <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">职位管理</h1>
           <p className="text-sm text-gray-400 mt-1">共 {jobs?.length || 0} 个职位</p>
         </div>
-        <Link href="/consultant/jobs/import" className="btn-primary flex items-center gap-2">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          导入新职位
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href="/consultant/jobs/create" className="btn-primary flex items-center gap-2">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            手动发布
+          </Link>
+          <Link href="/consultant/jobs/import" className="btn-secondary flex items-center gap-2">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+            </svg>
+            导入新职位
+          </Link>
+        </div>
       </div>
 
       {!jobs || jobs.length === 0 ? (
