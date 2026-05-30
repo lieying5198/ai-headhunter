@@ -175,7 +175,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '二维码已过期' }, { status: 400 })
     }
 
-    // 2. 查找顾问
+    // 2. 查找顾问（先在consultants表确认邮箱合法）
     const { data: consultant, error: consultantError } = await supabase
       .from('consultants')
       .select('id, email, name')
@@ -186,15 +186,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '该邮箱未注册为顾问，请联系管理员' }, { status: 404 })
     }
 
-    // 3. 标记token为已确认
+    // 3. 获取 auth.users.id（qr-session 需要用这个来 getUserById）
+    const { data: { users }, error: listError } = await supabase.auth.admin.listUsers({ perPage: 1000 })
+    const authUser = users?.find((u: { email?: string }) => u.email?.toLowerCase() === email.toLowerCase().trim())
+
+    if (listError || !authUser) {
+      return NextResponse.json({ error: '该邮箱尚未创建登录账号，请先通过邮箱密码登录一次激活账号' }, { status: 404 })
+    }
+
+    // 4. 标记token为已确认（user_id 存的是 auth.users.id）
     const { error: updateError } = await supabase
       .from('auth_qr_tokens')
       .update({
         status: 'confirmed',
-        user_id: consultant.id,
+        user_id: authUser.id,
         confirmed_at: new Date().toISOString(),
         session_data: {
-          user_id: consultant.id,
+          user_id: authUser.id,
           email: consultant.email,
           name: consultant.name,
         },
