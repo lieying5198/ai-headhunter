@@ -200,6 +200,8 @@ export async function POST(request: NextRequest) {
     let refreshToken: string | null = null
     let expiresAt: number | null = null
 
+    console.log('[QR-Confirm] Starting magic link generation for:', email)
+
     try {
       const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
         type: 'magiclink',
@@ -209,28 +211,35 @@ export async function POST(request: NextRequest) {
         },
       })
 
+      console.log('[QR-Confirm] generateLink result:', linkError ? 'ERROR: ' + linkError.message : 'SUCCESS')
+
       if (!linkError && linkData) {
+        console.log('[QR-Confirm] Link data available, action_link:', linkData.properties?.action_link?.substring(0, 60) + '...')
         // 解析 magic link 中的 token_hash
         const magicUrl = new URL(linkData.properties.action_link)
         const tokenHash = magicUrl.searchParams.get('token_hash')
         const type = magicUrl.searchParams.get('type') || 'magiclink'
 
+        console.log('[QR-Confirm] Extracted token_hash:', tokenHash ? 'YES (len=' + tokenHash.length + ')' : 'NO')
+
         if (tokenHash) {
           // 调用 Supabase verify 端点换取真实 session
-          const verifyResp = await fetch(
-            `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/verify`,
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-              },
-              body: JSON.stringify({
-                type,
-                token_hash: tokenHash,
-              }),
-            }
-          )
+          const verifyUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/verify`
+          console.log('[QR-Confirm] Calling verify endpoint...')
+
+          const verifyResp = await fetch(verifyUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            },
+            body: JSON.stringify({
+              type,
+              token_hash: tokenHash,
+            }),
+          })
+
+          console.log('[QR-Confirm] Verify response status:', verifyResp.status)
 
           if (verifyResp.ok) {
             const verifyData = await verifyResp.json()
@@ -239,37 +248,45 @@ export async function POST(request: NextRequest) {
             expiresAt = verifyData.expires_in
               ? Math.floor(Date.now() / 1000) + verifyData.expires_in
               : null
+            console.log('[QR-Confirm] Session tokens obtained:', { hasAccess: !!accessToken, hasRefresh: !!refreshToken })
+          } else {
+            const verifyErrText = await verifyResp.text()
+            console.error('[QR-Confirm] Verify failed:', verifyResp.status, verifyErrText.substring(0, 200))
           }
         }
       }
     } catch (magicErr) {
-      console.error('Magic link generation failed:', magicErr)
+      console.error('[QR-Confirm] Magic link generation failed:', magicErr)
       // 即使 magic link 失败，仍然标记 confirmed（用户仍可用邮箱密码登录）
     }
 
     // 5. 标记token为已确认，附上 session token（供前端 setSession 使用）
+    const sessionDataToStore = {
+      user_id: authUser.id,
+      email: consultant.email,
+      name: consultant.name,
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      expires_at: expiresAt,
+    }
+    console.log('[QR-Confirm] Storing session_data:', { ...sessionDataToStore, access_token: accessToken ? '***' : null, refresh_token: refreshToken ? '***' : null })
+
     const { error: updateError } = await supabase
       .from('auth_qr_tokens')
       .update({
         status: 'confirmed',
         user_id: authUser.id,
         confirmed_at: new Date().toISOString(),
-        session_data: {
-          user_id: authUser.id,
-          email: consultant.email,
-          name: consultant.name,
-          access_token: accessToken,
-          refresh_token: refreshToken,
-          expires_at: expiresAt,
-        },
+        session_data: sessionDataToStore,
       })
       .eq('token', token)
 
     if (updateError) {
-      console.error('Token update error:', updateError)
+      console.error('[QR-Confirm] Token update error:', updateError)
       return NextResponse.json({ error: '确认失败，请重试' }, { status: 500 })
     }
 
+    console.log('[QR-Confirm] Success, returning to client')
     return NextResponse.json({
       success: true,
       name: consultant.name,

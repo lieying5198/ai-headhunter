@@ -90,8 +90,10 @@ export default function LoginPage() {
         // 开始轮询
         pollRef.current = setInterval(async () => {
           try {
+            console.log('[QR] Polling qr-status, token:', data.token.substring(0, 8) + '...')
             const statusResp = await fetch(`/api/auth/qr-status?token=${data.token}`)
             const statusData = await statusResp.json()
+            console.log('[QR] qr-status response:', statusData.status, statusData.session ? 'has session' : 'no session')
 
             if (statusData.status === 'confirmed') {
               setQrStatus('confirmed')
@@ -99,20 +101,27 @@ export default function LoginPage() {
 
               // 优先用 session token 客户端直接建会话
               const session = statusData.session
+              console.log('[QR] Session data:', session ? { has_access: !!session.access_token, has_refresh: !!session.refresh_token } : null)
+
               if (session?.access_token) {
-                const { error: sessionError } = await supabase.auth.setSession({
+                console.log('[QR] Calling setSession...')
+                const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
                   access_token: session.access_token,
                   refresh_token: session.refresh_token,
                 })
+                console.log('[QR] setSession result:', sessionError ? 'ERROR: ' + sessionError.message : 'SUCCESS', 'user:', sessionData?.user?.email)
+
                 if (!sessionError) {
+                  console.log('[QR] Redirecting to dashboard...')
                   router.push('/consultant/dashboard')
                   router.refresh()
                 } else {
-                  console.error('setSession failed:', sessionError)
-                  setQrError('登录失败，请尝试邮箱密码登录')
+                  console.error('[QR] setSession failed:', sessionError)
+                  setQrError('登录失败: ' + sessionError.message)
                   setQrStatus('idle')
                 }
               } else {
+                console.log('[QR] No access_token in session, falling back to qr-session route')
                 // 降级：走 qr-session 服务端路由（兼容旧逻辑）
                 window.location.href = `/api/auth/qr-session?token=${data.token}`
               }
@@ -123,7 +132,7 @@ export default function LoginPage() {
             }
             // pending: 等待扫码，不改变UI状态，保持"请扫描二维码"提示
           } catch (err) {
-            console.error('QR poll error:', err)
+            console.error('[QR] Polling error:', err)
           }
         }, 2000)
       } else {
